@@ -363,6 +363,16 @@
 - (BOOL)webView:(UIWebView*)theWebView shouldStartLoadWithRequest:(NSURLRequest*)request navigationType:(UIWebViewNavigationType)navigationType
 {
     NSURL* url = request.URL;
+    NSArray* cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookiesForURL:[NSURL URLWithString:[url absoluteString]]];
+    NSMutableDictionary *dictionary = [NSMutableDictionary dictionary];
+    [cookies enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        NSHTTPCookie *cookie = obj;
+        [dictionary setObject:cookie.value forKey:cookie.name];
+        
+    }];
+    NSError * err;
+    NSData * jsonData = [NSJSONSerialization dataWithJSONObject:dictionary options:0 error:&err];
+    NSString * cookieString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
     BOOL isTopLevelNavigation = [request.URL isEqual:[request mainDocumentURL]];
 
     // See if the url uses the 'gap-iab' protocol. If so, the host should be the id of a callback to execute,
@@ -393,7 +403,7 @@
     } else if ((self.callbackId != nil) && isTopLevelNavigation) {
         // Send a loadstart event for each top-level navigation (includes redirects).
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
-                                                      messageAsDictionary:@{@"type":@"loadstart", @"url":[url absoluteString]}];
+                                                      messageAsDictionary:@{@"type":@"loadstart", @"url":[url absoluteString],@"cookies":cookieString}];
         [pluginResult setKeepCallback:[NSNumber numberWithBool:YES]];
 
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
